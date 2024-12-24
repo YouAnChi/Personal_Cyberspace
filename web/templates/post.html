@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文章详情 - 我的博客</title>
+    <link href="/static/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .blog-post {
+            margin-bottom: 4rem;
+        }
+        
+        .blog-post-title {
+            font-size: 2.5rem;
+        }
+        
+        .blog-post-meta {
+            margin-bottom: 1.25rem;
+            color: #727272;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="blog-header py-3">
+            <div class="row flex-nowrap justify-content-between align-items-center">
+                <div class="col-4 pt-1">
+                    <a class="link-secondary" href="/blog">返回博客</a>
+                </div>
+                <div class="col-4 text-center">
+                    <a class="blog-header-logo text-dark text-decoration-none" href="/blog">我的博客</a>
+                </div>
+                <div class="col-4 d-flex justify-content-end align-items-center">
+                    <a class="btn btn-sm btn-outline-secondary" href="/login">登录</a>
+                </div>
+            </div>
+        </header>
+
+        <main class="container my-5">
+            <div class="row">
+                <div class="col-md-8">
+                    <article class="blog-post" id="post-content">
+                        <!-- 文章内容将通过JavaScript动态加载 -->
+                    </article>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="position-sticky" style="top: 2rem;">
+                        <div class="p-4 mb-3 bg-light rounded">
+                            <h4 class="fst-italic">关于作者</h4>
+                            <p class="mb-0" id="author-info">作者信息将通过JavaScript动态加载</p>
+                        </div>
+
+                        <div class="p-4">
+                            <h4 class="fst-italic">分类</h4>
+                            <p id="post-category">分类信息将通过JavaScript动态加载</p>
+                        </div>
+
+                        <div class="p-4">
+                            <h4 class="fst-italic">标签</h4>
+                            <p id="post-tags">标签信息将通过JavaScript动态加载</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <footer class="blog-footer text-center py-5">
+        <p>博客模板由 <a href="https://getbootstrap.com/">Bootstrap</a> 驱动</p>
+        <p><a href="#">返回顶部</a></p>
+    </footer>
+
+    <script src="/static/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 从URL获取文章ID
+        const postId = window.location.pathname.split('/').pop();
+        
+        // 加载文章内容
+        async function loadPost() {
+            try {
+                const response = await fetch(`/api/posts/${postId}`);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || '加载文章失败');
+                }
+                
+                const post = data.post;
+                document.title = `${post.title} - 我的博客`;
+                
+                // 更新文章内容
+                const postContent = `
+                    <h1 class="blog-post-title">${post.title}</h1>
+                    <p class="blog-post-meta">
+                        ${new Date(post.created_at).toLocaleDateString()} by 
+                        <span class="text-primary">${post.user.nickname || post.user.username}</span>
+                    </p>
+                    <div class="blog-post-content">
+                        ${post.content}
+                    </div>
+                `;
+                document.getElementById('post-content').innerHTML = postContent;
+                
+                // 更新作者信息
+                document.getElementById('author-info').textContent = 
+                    `${post.user.nickname || post.user.username} - ${post.user.email}`;
+                
+                // 更新分类信息
+                document.getElementById('post-category').textContent = post.category || '未分类';
+                
+                // 更新标签信息
+                document.getElementById('post-tags').textContent = post.tags || '无标签';
+                
+            } catch (error) {
+                console.error('加载文章失败:', error);
+                document.getElementById('post-content').innerHTML = `
+                    <div class="alert alert-danger">
+                        加载文章失败: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', loadPost);
+    </script>
+</body>
+</html> 
