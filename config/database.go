@@ -11,8 +11,8 @@ var DB *gorm.DB
 
 func InitDB() error {
 	// 数据库配置
-	username := "root"   // 数据库用户名
-	password := "123456" // 数据库密码
+	username := "root"     // 数据库用户名
+	password := "12345678" // 数据库密码
 	host := "127.0.0.1"
 	port := 3306
 	dbName := "pcy"
