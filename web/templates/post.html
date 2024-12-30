@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>文章详情 - 我的博客</title>
     <link href="/static/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/css/markdown.css" rel="stylesheet">
     <style>
         .blog-post {
             margin-bottom: 4rem;
@@ -67,63 +68,64 @@
     </div>
 
     <footer class="blog-footer text-center py-5">
-        <p>博客模板由 <a href="https://getbootstrap.com/">Bootstrap</a> 驱动</p>
+        
         <p><a href="#">返回顶部</a></p>
     </footer>
 
     <script src="/static/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script>
-        // 从URL获取文章ID
-        const postId = window.location.pathname.split('/').pop();
-        
-        // 加载文章内容
         async function loadPost() {
+            // 从 URL 路径中获取文章 ID
+            const postId = window.location.pathname.split('/').pop();
+            
             try {
                 const response = await fetch(`/api/posts/${postId}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
                 const data = await response.json();
                 
-                if (!response.ok) {
-                    throw new Error(data.error || '加载文章失败');
+                if (!data || !data.post) {
+                    throw new Error('文章数据无效');
                 }
+
+                document.title = `${data.post.title} - 我的博客`;
+                const postContent = document.getElementById('post-content');
                 
-                const post = data.post;
-                document.title = `${post.title} - 我的博客`;
+                // 使用 marked.js 渲染 Markdown 内容
+                const htmlContent = data.post.html_content || marked.parse(data.post.content);
                 
-                // 更新文章内容
-                const postContent = `
-                    <h1 class="blog-post-title">${post.title}</h1>
-                    <p class="blog-post-meta">
-                        ${new Date(post.created_at).toLocaleDateString()} by 
-                        <span class="text-primary">${post.user.nickname || post.user.username}</span>
-                    </p>
-                    <div class="blog-post-content">
-                        ${post.content}
+                postContent.innerHTML = `
+                    <h1 class="blog-post-title">${data.post.title}</h1>
+                    <div class="blog-post-meta">
+                        <p>发布时间：${new Date(data.post.created_at).toLocaleString()}</p>
+                        <p>作者：${data.post.user ? (data.post.user.nickname || data.post.user.username) : '未知作者'}</p>
+                    </div>
+                    <div class="markdown-body">
+                        ${htmlContent}
                     </div>
                 `;
-                document.getElementById('post-content').innerHTML = postContent;
-                
-                // 更新作者信息
-                document.getElementById('author-info').textContent = 
-                    `${post.user.nickname || post.user.username} - ${post.user.email}`;
-                
-                // 更新分类信息
-                document.getElementById('post-category').textContent = post.category || '未分类';
-                
-                // 更新标签信息
-                document.getElementById('post-tags').textContent = post.tags || '无标签';
-                
             } catch (error) {
                 console.error('加载文章失败:', error);
-                document.getElementById('post-content').innerHTML = `
-                    <div class="alert alert-danger">
-                        加载文章失败: ${error.message}
+                const postContent = document.getElementById('post-content');
+                postContent.innerHTML = `
+                    <div class="alert alert-danger" role="alert">
+                        <h4 class="alert-heading">文章加载失败</h4>
+                        <p>抱歉，无法加载文章内容。可能是以下原因：</p>
+                        <ul>
+                            <li>文章不存在或已被删除</li>
+                            <li>服务器暂时无法访问</li>
+                            <li>网络连接出现问题</li>
+                        </ul>
+                        <hr>
+                        <p class="mb-0">请稍后重试或<a href="/blog" class="alert-link">返回博客列表</a></p>
                     </div>
                 `;
             }
         }
 
-        // 页面加载完成后执行
         document.addEventListener('DOMContentLoaded', loadPost);
     </script>
 </body>
-</html> 
+</html>

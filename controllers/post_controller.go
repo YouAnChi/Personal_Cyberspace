@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"log"
 	"net/http"
 	"pcy/config"
 	"pcy/models"
@@ -48,18 +49,53 @@ func GetPosts(c *gin.Context) {
 
 // GetPost 获取单篇文章
 func GetPost(c *gin.Context) {
-	id := c.Param("id")
-	var post models.Post
-
-	if err := config.DB.Preload("User").First(&post, id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "文章不存在"})
+	idStr := c.Param("id")
+	if idStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "文章ID不能为空",
+			"code":  "INVALID_ID",
+		})
 		return
 	}
 
-	// 增加浏览次数
-	config.DB.Model(&post).UpdateColumn("view_count", post.ViewCount+1)
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "无效的文章ID格式",
+			"code":  "INVALID_ID_FORMAT",
+		})
+		return
+	}
 
-	c.JSON(http.StatusOK, gin.H{"post": post})
+	var post models.Post
+	result := config.DB.Preload("User").First(&post, id)
+	if result.Error != nil {
+		// 尝试使用标题查找
+		result = config.DB.Preload("User").Where("title = ?", idStr).First(&post)
+		if result.Error != nil {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "文章不存在或已被删除",
+				"code":  "POST_NOT_FOUND",
+			})
+			return
+		}
+	}
+
+	// 增加浏览次数（使用事务确保原子性）
+	tx := config.DB.Begin()
+	if err := tx.Model(&post).UpdateColumn("view_count", post.ViewCount+1).Error; err != nil {
+		tx.Rollback()
+		// 更新浏览次数失败不影响文章显示
+		log.Printf("更新文章(%d)浏览次数失败: %v", post.ID, err)
+	} else {
+		tx.Commit()
+		post.ViewCount++ // 更新返回对象的浏览次数
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"post": post,
+		"code": "SUCCESS",
+	})
 }
 
 // CreatePost 创建文章

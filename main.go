@@ -7,6 +7,7 @@ import (
 	"pcy/config"
 	"pcy/models"
 	"pcy/routes"
+	"pcy/utils"
 	"syscall"
 )
 
@@ -18,41 +19,12 @@ func initTestData() error {
 		Email:    "admin@example.com",
 		Nickname: "管理员",
 	}
-	user.SetPassword("123456")
+	user.SetPassword("12345678")
 
 	// 使用新版GORM的FirstOrCreate
 	result := config.DB.Where(models.User{Username: "admin"}).FirstOrCreate(&user)
 	if result.Error != nil {
 		return result.Error
-	}
-
-	// 创建测试文章
-	posts := []models.Post{
-		{
-			Title:       "欢迎使用PCy个人网络空间",
-			Content:     "这是一个使用Go语言和Bootstrap构建的个人网络空间系统。在这里，你可以分享你的想法、经验和故事。",
-			Summary:     "系统介绍和使用说明",
-			UserID:      user.ID,
-			Category:    "公告",
-			Tags:        "公告,使用说明",
-			IsPublished: true,
-		},
-		{
-			Title:       "Go语言入门教程",
-			Content:     "Go是一个开源的编程语言，它能让构造简单、可靠且高效的软件变得容易。本文将介绍Go语言的基础知识和使用方法。",
-			Summary:     "Go语言基础知识介绍",
-			UserID:      user.ID,
-			Category:    "技术",
-			Tags:        "Go,编程,教程",
-			IsPublished: true,
-		},
-	}
-
-	for _, post := range posts {
-		result := config.DB.Where(models.Post{Title: post.Title}).FirstOrCreate(&post)
-		if result.Error != nil {
-			return result.Error
-		}
 	}
 
 	return nil
@@ -77,6 +49,14 @@ func main() {
 		log.Printf("初始化测试数据失败: %v", err)
 	}
 	log.Println("测试数据初始化完成")
+
+	// 监控文章目录
+	articleDir := "./articles/md"
+	err := utils.LoadArticlesFromMarkdown(articleDir)
+	if err != nil {
+		log.Printf("初始文章加载失败: %v", err)
+	}
+	utils.WatchArticlesDirectory(articleDir)
 
 	// 设置路由
 	r := routes.SetupRouter()
