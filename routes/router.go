@@ -20,11 +20,15 @@ func SetupRouter() *gin.Engine {
 
 	// 前端页面路由
 	r.GET("/", func(c *gin.Context) {
-		c.Redirect(http.StatusMovedPermanently, "/cover")
+		c.HTML(http.StatusOK, "cover.html", nil)
 	})
 
 	r.GET("/cover", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "cover.html", nil)
+	})
+
+	r.GET("/home", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "home.html", nil)
 	})
 
 	r.GET("/blog", func(c *gin.Context) {
