@@ -112,7 +112,7 @@
     </main>
 
     <footer class="blog-footer text-center py-5">
-        <p>博客模板由 <a href="https://getbootstrap.com/">Bootstrap</a> 驱动</p>
+
         <p><a href="#">返回顶部</a></p>
     </footer>
 
@@ -130,7 +130,7 @@
                         const postHtml = `
                             <article class="blog-post">
                                 <h2 class="blog-post-title">${post.title}</h2>
-                                <p class="blog-post-meta">${new Date(post.created_at).toLocaleDateString()} by ${post.user.nickname || post.user.username}</p>
+                                <p class="blog-post-meta">${new Date(post.CreatedAt).toLocaleDateString()} by ${post.author}</p>
                                 <p>${post.summary || post.content.substring(0, 200)}...</p>
                                 <a href="/blog/post/${post.ID}" class="btn btn-link px-0">继续阅读</a>
                             </article>
@@ -150,4 +150,4 @@
         document.addEventListener('DOMContentLoaded', loadBlogPosts);
     </script>
 </body>
-</html> 
+</html>

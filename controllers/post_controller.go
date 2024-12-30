@@ -24,7 +24,7 @@ type CreatePostRequest struct {
 // GetPosts 获取文章列表
 func GetPosts(c *gin.Context) {
 	var posts []models.Post
-	query := config.DB.Preload("User")
+	query := config.DB
 
 	// 分页
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -68,10 +68,10 @@ func GetPost(c *gin.Context) {
 	}
 
 	var post models.Post
-	result := config.DB.Preload("User").First(&post, id)
+	result := config.DB.First(&post, id)
 	if result.Error != nil {
 		// 尝试使用标题查找
-		result = config.DB.Preload("User").Where("title = ?", idStr).First(&post)
+		result = config.DB.Where("title = ?", idStr).First(&post)
 		if result.Error != nil {
 			c.JSON(http.StatusNotFound, gin.H{
 				"error": "文章不存在或已被删除",
@@ -106,9 +106,6 @@ func CreatePost(c *gin.Context) {
 		return
 	}
 
-	// TODO: 从JWT获取用户ID
-	userID := uint(1) // 临时写死
-
 	post := models.Post{
 		Title:       req.Title,
 		Content:     req.Content,
@@ -116,7 +113,7 @@ func CreatePost(c *gin.Context) {
 		Cover:       req.Cover,
 		Category:    req.Category,
 		Tags:        req.Tags,
-		UserID:      userID,
+		Author:      "admin",
 		IsPublished: req.IsPublished,
 	}
 
@@ -146,8 +143,6 @@ func UpdatePost(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数无效"})
 		return
 	}
-
-	// TODO: 检查用户权限
 
 	updates := models.Post{
 		Title:       req.Title,
@@ -179,8 +174,6 @@ func DeletePost(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "文章不存在"})
 		return
 	}
-
-	// TODO: 检查用户权限
 
 	if err := config.DB.Delete(&post).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除文章失败"})

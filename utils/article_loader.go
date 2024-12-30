@@ -23,6 +23,11 @@ func LoadArticlesFromMarkdown(mdDir string) error {
 		os.MkdirAll(mdDir, 0755)
 	}
 
+	// 先清空数据库中的文章
+	if err := config.DB.Exec("DELETE FROM posts").Error; err != nil {
+		return err
+	}
+
 	// 遍历目录中的 Markdown 文件
 	return filepath.Walk(mdDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -42,68 +47,26 @@ func LoadArticlesFromMarkdown(mdDir string) error {
 			filename := filepath.Base(path)
 			title := strings.TrimSuffix(filename, ".md")
 
-			// 检查文章是否已存在
-			var existingPost models.Post
-			result := config.DB.Where("title = ?", title).First(&existingPost)
-			if result.Error == nil {
-				log.Printf("文章 %s 已存在，跳过", title)
-				return nil
-			}
-
-			// 更全面的 Markdown 扩展
-			extensions := parser.CommonExtensions |
-				parser.AutoHeadingIDs |
-				parser.NoEmptyLineBeforeBlock |
-				parser.HardLineBreak |      // 启用硬换行
-				parser.Strikethrough        // 删除线
-
-			mdParser := parser.NewWithExtensions(extensions)
-
-			htmlFlags := html.CommonFlags |
-				html.HrefTargetBlank |
-				html.CompletePage | // 生成完整的 HTML 页面
-				html.UseXHTML // 使用 XHTML 标准
-
-			opts := html.RendererOptions{
-				Flags: htmlFlags,
-				CSS:   "", // 可以添加自定义 CSS
-				Title: title,
-			}
-			renderer := html.NewRenderer(opts)
-
-			htmlContent := string(markdown.ToHTML(content, mdParser, renderer))
-
-			// 创建文章对象
+			// 创建新文章
+			htmlContent := string(markdown.ToHTML(content, parser.NewWithExtensions(parser.CommonExtensions), html.NewRenderer(html.RendererOptions{Flags: html.CommonFlags})))
 			post := models.Post{
 				Title:       title,
 				Content:     string(content),
-				Summary:     generateSummary(htmlContent),
-				Category:    "文章",
-				Tags:        "markdown",
+				HTMLContent: htmlContent,
+				Author:      "admin",
 				IsPublished: true,
-				UserID:      1, // 默认管理员
 			}
 
 			// 保存到数据库
-			result = config.DB.Create(&post)
-			if result.Error != nil {
-				log.Printf("保存文章 %s 失败: %v", title, result.Error)
-			} else {
-				log.Printf("成功导入文章：%s", title)
+			if err := config.DB.Create(&post).Error; err != nil {
+				log.Printf("保存文章 %s 失败: %v", title, err)
+				return nil
 			}
+
+			log.Printf("成功加载文章: %s", title)
 		}
 		return nil
 	})
-}
-
-// generateSummary 从 HTML 内容生成摘要
-func generateSummary(htmlContent string) string {
-	// 简单实现：取前200个字符
-	runes := []rune(htmlContent)
-	if len(runes) > 200 {
-		return string(runes[:200]) + "..."
-	}
-	return string(runes)
 }
 
 // WatchArticlesDirectory 监控文章目录
