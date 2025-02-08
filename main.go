@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"pcy/config"
+	"pcy/metrics"
 	"pcy/models"
 	"pcy/routes"
 	"pcy/utils"
@@ -31,6 +32,9 @@ func initTestData() error {
 }
 
 func main() {
+	// 初始化指标收集器
+	metrics.InitMetrics()
+
 	// 初始化数据库连接
 	if err := config.InitDB(); err != nil {
 		log.Fatalf("数据库初始化失败: %v", err)

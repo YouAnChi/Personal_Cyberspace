@@ -93,6 +93,23 @@ PCy/
   - 发布时间
   - 阅读统计
 
+### 4. 系统监控
+- Prometheus 指标收集
+  - HTTP请求监控
+    - 请求延迟统计（http_request_duration_seconds）
+    - 请求总数计数（http_requests_total）
+  - 数据库操作监控
+    - 操作延迟统计（db_operation_duration_seconds）
+    - 操作总数计数（db_operations_total）
+- 监控指标访问
+  - `/metrics` 端点
+  - Prometheus 兼容格式
+  - 实时数据更新
+- 集成说明
+  - 支持 Prometheus 服务器抓取
+  - 可配置 Grafana 仪表盘
+  - 支持告警配置
+
 ## API 接口
 
 ### 用户接口
