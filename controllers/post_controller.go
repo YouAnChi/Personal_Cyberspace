@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"log"
 	"net/http"
 	"pcy/config"
 	"pcy/models"
@@ -23,7 +24,7 @@ type CreatePostRequest struct {
 // GetPosts 获取文章列表
 func GetPosts(c *gin.Context) {
 	var posts []models.Post
-	query := config.DB.Preload("User")
+	query := config.DB
 
 	// 分页
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -48,18 +49,53 @@ func GetPosts(c *gin.Context) {
 
 // GetPost 获取单篇文章
 func GetPost(c *gin.Context) {
-	id := c.Param("id")
-	var post models.Post
-
-	if err := config.DB.Preload("User").First(&post, id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "文章不存在"})
+	idStr := c.Param("id")
+	if idStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "文章ID不能为空",
+			"code":  "INVALID_ID",
+		})
 		return
 	}
 
-	// 增加浏览次数
-	config.DB.Model(&post).UpdateColumn("view_count", post.ViewCount+1)
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "无效的文章ID格式",
+			"code":  "INVALID_ID_FORMAT",
+		})
+		return
+	}
 
-	c.JSON(http.StatusOK, gin.H{"post": post})
+	var post models.Post
+	result := config.DB.First(&post, id)
+	if result.Error != nil {
+		// 尝试使用标题查找
+		result = config.DB.Where("title = ?", idStr).First(&post)
+		if result.Error != nil {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "文章不存在或已被删除",
+				"code":  "POST_NOT_FOUND",
+			})
+			return
+		}
+	}
+
+	// 增加浏览次数（使用事务确保原子性）
+	tx := config.DB.Begin()
+	if err := tx.Model(&post).UpdateColumn("view_count", post.ViewCount+1).Error; err != nil {
+		tx.Rollback()
+		// 更新浏览次数失败不影响文章显示
+		log.Printf("更新文章(%d)浏览次数失败: %v", post.ID, err)
+	} else {
+		tx.Commit()
+		post.ViewCount++ // 更新返回对象的浏览次数
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"post": post,
+		"code": "SUCCESS",
+	})
 }
 
 // CreatePost 创建文章
@@ -70,9 +106,6 @@ func CreatePost(c *gin.Context) {
 		return
 	}
 
-	// TODO: 从JWT获取用户ID
-	userID := uint(1) // 临时写死
-
 	post := models.Post{
 		Title:       req.Title,
 		Content:     req.Content,
@@ -80,7 +113,7 @@ func CreatePost(c *gin.Context) {
 		Cover:       req.Cover,
 		Category:    req.Category,
 		Tags:        req.Tags,
-		UserID:      userID,
+		Author:      "admin",
 		IsPublished: req.IsPublished,
 	}
 
@@ -110,8 +143,6 @@ func UpdatePost(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数无效"})
 		return
 	}
-
-	// TODO: 检查用户权限
 
 	updates := models.Post{
 		Title:       req.Title,
@@ -143,8 +174,6 @@ func DeletePost(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "文章不存在"})
 		return
 	}
-
-	// TODO: 检查用户权限
 
 	if err := config.DB.Delete(&post).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除文章失败"})

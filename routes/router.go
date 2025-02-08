@@ -3,12 +3,19 @@ package routes
 import (
 	"net/http"
 	"pcy/controllers"
+	"pcy/metrics"
 
 	"github.com/gin-gonic/gin"
 )
 
 func SetupRouter() *gin.Engine {
 	r := gin.Default()
+
+	// 添加指标收集中间件
+	r.Use(metrics.MetricsMiddleware())
+
+	// 添加Prometheus指标数据暴露端点
+	r.GET("/metrics", metrics.PrometheusHandler())
 
 	// 静态文件服务
 	r.Static("/static", "./web/static")
